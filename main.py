@@ -51,7 +51,7 @@ def start_screen():
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, 1, pygame.Color('black'))
+        string_rendered = font.render(line, True, pygame.Color('black'))
         intro_rect = string_rendered.get_rect()
         text_coord += 10
         intro_rect.top = text_coord
@@ -123,13 +123,46 @@ running = True
 player, level_x, level_y = generate_level(load_level(maps))
 level_map = load_level(maps)
 start_screen()
+isMoving = False
+move = 0, 0
 while running:
     screen.fill((255, 255, 255))
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             terminate()
+        if event.type == pygame.KEYDOWN and not isMoving:
+            x, y = player.pos
+            if event.key == pygame.K_RIGHT and level_map[y][x + 1] in ['.', '@']:
+                if x < level_x - 1:
+                    isMoving = True
+                    move = 1, 0
+            if event.key == pygame.K_LEFT and level_map[y][x - 1] in ['.', '@']:
+                if x > 0:
+                    isMoving = True
+                    move = -1, 0
+            if event.key == pygame.K_DOWN and level_map[y + 1][x] in ['.', '@']:
+                if y < level_y - 1:
+                    isMoving = True
+                    move = 0, 1
+            if event.key == pygame.K_UP and level_map[y - 1][x] in ['.', '@']:
+                if y > 0:
+                    isMoving = True
+                    move = 0, -1
+    x, y = player.pos
+    if isMoving:
+        if level_map[y + move[1]][x + move[0]] in ['.', '@'] and (-1 < x < level_x and -1 < y < level_y or
+                                                                  ((move[0] != 0 and 0 < x < level_x - 1)
+                                                                   or (move[1] != 0 and 0 < y < level_y - 1))):
+            player.move(x + move[0], y + move[1])
+            print('cant stop')
+        else:
+            print('stop')
+            move = 0, 0
+            isMoving = False
+        print(player.pos)
     all_sprites.draw(screen)
     player_group.draw(screen)
+    clock.tick(20)
     pygame.display.flip()
     clock.tick(FPS)
