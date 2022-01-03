@@ -1,7 +1,6 @@
 import os
 import sys
 import pygame
-from random import choice
 from Player import Player
 from Tile import Tile
 
@@ -89,8 +88,11 @@ def load_level(filename):
 
 tile_images = {
     'wall': [load_image('box.png')],
-    'empty': [load_image('grass.png'), load_image('grass.png'), load_image('grass2.png')]
+    'empty': [load_image('grass.png')],
+    'pit': [load_image('pit.png')],
+    'exit': [load_image('exit.png')]
 }
+
 player_image = load_image('mar.png')
 
 tile_width = tile_height = 64
@@ -115,6 +117,10 @@ def generate_level(level):
             elif level[y][x] == '@':
                 Tile(tile_images['empty'], x, y, tile_height, [all_sprites, tiles_group])
                 new_player = Player(player_image, x, y, tile_height, [all_sprites, player_group])
+            elif level[y][x] == 'p':
+                Tile(tile_images['pit'], x, y, tile_height, [all_sprites, tiles_group])
+            elif level[y][x] == 'e':
+                Tile(tile_images['exit'], x, y, tile_height, [all_sprites, tiles_group])
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
@@ -125,6 +131,7 @@ level_map = load_level(maps)
 start_screen()
 isMoving = False
 move = 0, 0
+lmove = 0, 0
 while running:
     screen.fill((255, 255, 255))
     for event in pygame.event.get():
@@ -132,7 +139,7 @@ while running:
             running = False
             terminate()
         if event.type == pygame.KEYDOWN and not isMoving:
-            x, y = player.pos
+            x, y = int(player.pos[0]), int(player.pos[1])
             if event.key == pygame.K_RIGHT and level_map[y][x + 1] in ['.', '@']:
                 if x < level_x - 1:
                     isMoving = True
@@ -151,18 +158,31 @@ while running:
                     move = 0, -1
     x, y = player.pos
     if isMoving:
-        if level_map[y + move[1]][x + move[0]] in ['.', '@'] and (-1 < x < level_x and -1 < y < level_y or
-                                                                  ((move[0] != 0 and 0 < x < level_x - 1)
-                                                                   or (move[1] != 0 and 0 < y < level_y - 1))):
-            player.move(x + move[0], y + move[1])
+        if int(x) != x or int(y) != y or level_map[int(y) + move[1]][int(x) + move[0]] in ['.', '@']:
+            player.move(move[0], move[1], lmove)
             print('cant stop')
+        elif level_map[int(y) + move[1]][int(x) + move[0]] == 'p':
+            all_sprites = pygame.sprite.Group()
+            tiles_group = pygame.sprite.Group()
+            player_group = pygame.sprite.Group()
+            player, level_x, level_y = generate_level(load_level(maps))
+            level_map = load_level(maps)
+            isMoving = False
+            move = 0, 0
+            lmove = 0, 0
+        elif level_map[int(y) + move[1]][int(x) + move[0]] == 'e':
+            terminate()
         else:
             print('stop')
+            if move[0] != 0:
+                lmove = move[0], lmove[1]
+            if move[1] != 0:
+                lmove = lmove[0], move[1]
             move = 0, 0
             isMoving = False
-        print(player.pos)
+
     all_sprites.draw(screen)
     player_group.draw(screen)
-    clock.tick(20)
+    clock.tick()
     pygame.display.flip()
     clock.tick(FPS)
