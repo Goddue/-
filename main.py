@@ -9,7 +9,7 @@ maps = 'menu.map'
 size = WIDTH, HEIGHT = 640, 640
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-player_speed = 16
+player_speed = 32
 
 
 def load_image(name, colorkey=None):
@@ -119,7 +119,7 @@ def generate_level(level):
                 Tile(tile_images['wall'], x, y, tile_height, [all_sprites, boxs_group])
             elif level[y][x] == '@':
                 Tile(tile_images['empty'], x, y, tile_height, [all_sprites, tiles_group])
-                new_player = Player(player_image, x * tile_width + 16, y * tile_height + 16,
+                new_player = Player(player_image, x * tile_width + player_speed, y * tile_height + player_speed,
                                     player_speed, [all_sprites, player_group])
             elif level[y][x] == 'p':
                 Tile(tile_images['pit'], x, y, tile_height, [all_sprites, pits_group])
@@ -176,13 +176,13 @@ while running:
         player.move(move[0], move[1])
         print(move)
         print(x, y)
-        if pygame.sprite.spritecollideany(player, boxs_group) or not (-1 < x + move[0] * player_speed < HEIGHT - 31 and
-                                                                      -1 < y + move[1] * player_speed < WIDTH - 31):
+        if not (-1 < x + move[0] * player_speed < HEIGHT - 31 and -1 < y + move[1] * player_speed < WIDTH - 31):
+            isMoving = 0
+            player.move(move[0] * -1, move[1] * -1)
+        elif pygame.sprite.spritecollideany(player, boxs_group):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
         elif pygame.sprite.spritecollideany(player, choose_group):
-            isMoving = 0
-            player.move(move[0] * -1, move[1] * -1)
             select_level('level1.map')
         elif pygame.sprite.spritecollideany(player, pits_group):
             select_level(maps)
