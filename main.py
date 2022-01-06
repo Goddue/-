@@ -5,11 +5,8 @@ from Player import Player
 from Tile import Tile
 
 pygame.init()
-if len(sys.argv) > 1:
-    maps = sys.argv[1]
-else:
-    maps = 'map.map'
-size = WIDTH, HEIGHT = 640, 640
+maps = 'menu.map'
+size = WIDTH, HEIGHT = 1920, 1080 - 50
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 
@@ -90,7 +87,8 @@ tile_images = {
     'wall': [load_image('box.png')],
     'empty': [load_image('grass.png')],
     'pit': [load_image('pit.png')],
-    'exit': [load_image('exit.png')]
+    'exit': [load_image('exit2.png')],
+    'choose': [load_image('level1.png')]
 }
 
 player_image = load_image('mar.png')
@@ -121,8 +119,24 @@ def generate_level(level):
                 Tile(tile_images['pit'], x, y, tile_height, [all_sprites, tiles_group])
             elif level[y][x] == 'e':
                 Tile(tile_images['exit'], x, y, tile_height, [all_sprites, tiles_group])
+            elif level[y][x] == 'c':
+                Tile(tile_images['choose'], x, y, tile_height, [all_sprites, tiles_group])
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
+
+
+def select_level(level):
+    global all_sprites, tiles_group, player_group, player, level_x, level_y, level_map, isMoving, move, lmove, maps
+    all_sprites = pygame.sprite.Group()
+    tiles_group = pygame.sprite.Group()
+    player_group = pygame.sprite.Group()
+    player, level_x, level_y = generate_level(load_level(level))
+    level_map = load_level(level)
+    isMoving = False
+    move = 0, 0
+    lmove = 0, 0
+    maps = level
+    print(True)
 
 
 running = True
@@ -158,18 +172,14 @@ while running:
                     move = 0, -1
     x, y = player.pos
     if isMoving:
-        if int(x) != x or int(y) != y or level_map[int(y) + move[1]][int(x) + move[0]] in ['.', '@']:
+        if (int(x) != x or int(y) != y or level_map[int(y) + move[1]][int(x) + move[0]] in ['.', '@'])\
+                and -1 < y < level_y - 1 and -1 < x < level_x:
             player.move(move[0], move[1], lmove)
             print('cant stop')
         elif level_map[int(y) + move[1]][int(x) + move[0]] == 'p':
-            all_sprites = pygame.sprite.Group()
-            tiles_group = pygame.sprite.Group()
-            player_group = pygame.sprite.Group()
-            player, level_x, level_y = generate_level(load_level(maps))
-            level_map = load_level(maps)
-            isMoving = False
-            move = 0, 0
-            lmove = 0, 0
+            select_level(maps)
+        elif level_map[int(y) + move[1]][int(x) + move[0]] == 'c':
+            select_level('level1.map')
         elif level_map[int(y) + move[1]][int(x) + move[0]] == 'e':
             terminate()
         else:
