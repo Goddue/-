@@ -6,9 +6,10 @@ from Tile import Tile
 
 pygame.init()
 maps = 'menu.map'
-size = WIDTH, HEIGHT = 1920, 1080 - 50
+size = WIDTH, HEIGHT = 640, 640
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
+player_speed = 16
 
 
 def load_image(name, colorkey=None):
@@ -102,6 +103,10 @@ player = None
 all_sprites = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
+boxs_group = pygame.sprite.Group()
+choose_group = pygame.sprite.Group()
+exit_group = pygame.sprite.Group()
+pits_group = pygame.sprite.Group()
 
 
 def generate_level(level):
@@ -111,30 +116,29 @@ def generate_level(level):
             if level[y][x] == '.':
                 Tile(tile_images['empty'], x, y, tile_height, [all_sprites, tiles_group])
             elif level[y][x] == '#':
-                Tile(tile_images['wall'], x, y, tile_height, [all_sprites, tiles_group])
+                Tile(tile_images['wall'], x, y, tile_height, [all_sprites, boxs_group])
             elif level[y][x] == '@':
                 Tile(tile_images['empty'], x, y, tile_height, [all_sprites, tiles_group])
-                new_player = Player(player_image, x, y, tile_height, [all_sprites, player_group])
+                new_player = Player(player_image, x * tile_width + 16, y * tile_height + 16,
+                                    player_speed, [all_sprites, player_group])
             elif level[y][x] == 'p':
-                Tile(tile_images['pit'], x, y, tile_height, [all_sprites, tiles_group])
+                Tile(tile_images['pit'], x, y, tile_height, [all_sprites, pits_group])
             elif level[y][x] == 'e':
-                Tile(tile_images['exit'], x, y, tile_height, [all_sprites, tiles_group])
+                Tile(tile_images['exit'], x, y, tile_height, [all_sprites, exit_group])
             elif level[y][x] == 'c':
-                Tile(tile_images['choose'], x, y, tile_height, [all_sprites, tiles_group])
+                Tile(tile_images['choose'], x, y, tile_height, [all_sprites, choose_group])
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
 
 def select_level(level):
-    global all_sprites, tiles_group, player_group, player, level_x, level_y, level_map, isMoving, move, lmove, maps
-    all_sprites = pygame.sprite.Group()
-    tiles_group = pygame.sprite.Group()
-    player_group = pygame.sprite.Group()
+    global all_sprites, player, level_x, level_y, level_map, isMoving, move, maps
+    for i in all_sprites:
+        i.kill()
     player, level_x, level_y = generate_level(load_level(level))
     level_map = load_level(level)
     isMoving = False
     move = 0, 0
-    lmove = 0, 0
     maps = level
     print(True)
 
@@ -145,7 +149,6 @@ level_map = load_level(maps)
 start_screen()
 isMoving = False
 move = 0, 0
-lmove = 0, 0
 while running:
     screen.fill((255, 255, 255))
     for event in pygame.event.get():
@@ -154,45 +157,40 @@ while running:
             terminate()
         if event.type == pygame.KEYDOWN and not isMoving:
             x, y = int(player.pos[0]), int(player.pos[1])
-            if event.key == pygame.K_RIGHT and level_map[y][x + 1] in ['.', '@']:
-                if x < level_x - 1:
-                    isMoving = True
-                    move = 1, 0
-            if event.key == pygame.K_LEFT and level_map[y][x - 1] in ['.', '@']:
-                if x > 0:
-                    isMoving = True
-                    move = -1, 0
-            if event.key == pygame.K_DOWN and level_map[y + 1][x] in ['.', '@']:
-                if y < level_y - 1:
-                    isMoving = True
-                    move = 0, 1
-            if event.key == pygame.K_UP and level_map[y - 1][x] in ['.', '@']:
-                if y > 0:
-                    isMoving = True
-                    move = 0, -1
+            if event.key == pygame.K_RIGHT:
+                isMoving = True
+                move = 1, 0
+            if event.key == pygame.K_LEFT:
+                isMoving = True
+                move = -1, 0
+            if event.key == pygame.K_DOWN:
+                isMoving = True
+                move = 0, 1
+            if event.key == pygame.K_UP:
+                isMoving = True
+                move = 0, -1
     x, y = player.pos
     if isMoving:
-        if (int(x) != x or int(y) != y or level_map[int(y) + move[1]][int(x) + move[0]] in ['.', '@'])\
-                and -1 < y < level_y - 1 and -1 < x < level_x:
-            player.move(move[0], move[1], lmove)
-            print('cant stop')
-        elif level_map[int(y) + move[1]][int(x) + move[0]] == 'p':
-            select_level(maps)
-        elif level_map[int(y) + move[1]][int(x) + move[0]] == 'c':
+        print('cant stop')
+        print(x, y)
+        player.move(move[0], move[1])
+        print(move)
+        print(x, y)
+        if pygame.sprite.spritecollideany(player, boxs_group) or not (-1 < x + move[0] * player_speed < HEIGHT - 31 and
+                                                                      -1 < y + move[1] * player_speed < WIDTH - 31):
+            isMoving = 0
+            player.move(move[0] * -1, move[1] * -1)
+        elif pygame.sprite.spritecollideany(player, choose_group):
+            isMoving = 0
+            player.move(move[0] * -1, move[1] * -1)
             select_level('level1.map')
-        elif level_map[int(y) + move[1]][int(x) + move[0]] == 'e':
+        elif pygame.sprite.spritecollideany(player, pits_group):
+            select_level(maps)
+        elif pygame.sprite.spritecollideany(player, exit_group):
             terminate()
-        else:
-            print('stop')
-            if move[0] != 0:
-                lmove = move[0], lmove[1]
-            if move[1] != 0:
-                lmove = lmove[0], move[1]
-            move = 0, 0
-            isMoving = False
-
+        print(x, y)
     all_sprites.draw(screen)
     player_group.draw(screen)
-    clock.tick()
+    clock.tick(120)
     pygame.display.flip()
     clock.tick(FPS)
