@@ -97,7 +97,7 @@ tile_images = {
                load_image('level5.png')]
 }
 
-player_image = [load_image('marmove.png')]
+player_image = [load_image('marmove.png'), load_image('bmarmove.png')]
 tile_width = tile_height = 64 * scale
 
 
@@ -202,9 +202,10 @@ while running:
         print(x, y)
     else:
         player.cur_frame = 0
+        player.image = player.frames[player.cur_frame]
     all_sprites.draw(screen)
     player_group.draw(screen)
     boxs_group.draw(screen)
-    clock.tick(30)
+    clock.tick(60)
     pygame.display.flip()
     clock.tick(FPS)
