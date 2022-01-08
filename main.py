@@ -4,6 +4,8 @@ import pygame
 from Player import Player
 from Tile import Tile
 from Chooser import Chooser
+from Particle import Particle
+import random
 
 pygame.init()
 maps = 'menu.map'
@@ -33,7 +35,7 @@ def load_image(name, colorkey=None):
     return image
 
 
-FPS = 50
+FPS = 60
 
 
 def terminate():
@@ -88,6 +90,14 @@ def load_level(filename):
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
 
 
+def create_particles(position):
+    # количество создаваемых частиц
+    particle_count = 1
+    # возможные скорости
+    numbers = range(-5, 6)
+    Particle(position, random.choice(numbers), random.choice(numbers), fire, [all_sprites, particles_group])
+
+
 tile_images = {
     'wall': [load_image('box2.png')],
     'empty': [load_image('grass.png')],
@@ -96,7 +106,8 @@ tile_images = {
     'choose': [load_image('level1.png'), load_image('level2.png'), load_image('level3.png'), load_image('level4.png'),
                load_image('level5.png')]
 }
-
+fire = [load_image("particle.png"), load_image("particle3.png"),
+        load_image("particle4.png")]
 player_image = [load_image('marmove.png'), load_image('bmarmove.png')]
 tile_width = tile_height = 64 * scale
 
@@ -111,6 +122,7 @@ boxs_group = pygame.sprite.Group()
 choose_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
 pits_group = pygame.sprite.Group()
+particles_group = pygame.sprite.Group()
 
 
 def generate_level(level):
@@ -180,6 +192,8 @@ while running:
     x, y = player.pos
     if isMoving:
         player.move(move[0], move[1])
+        if not pygame.sprite.spritecollideany(player, particles_group):
+            create_particles((x, y))
         if not (-1 < x + move[0] * player_speed < WIDTH - 31 and -1 < y + move[1] * player_speed < HEIGHT - 31):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
@@ -203,9 +217,9 @@ while running:
     else:
         player.cur_frame = 0
         player.image = player.frames[player.cur_frame]
+    particles_group.update()
     all_sprites.draw(screen)
-    player_group.draw(screen)
     boxs_group.draw(screen)
-    clock.tick(60)
+    player_group.draw(screen)
     pygame.display.flip()
     clock.tick(FPS)
