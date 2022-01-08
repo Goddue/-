@@ -3,13 +3,16 @@ import sys
 import pygame
 from Player import Player
 from Tile import Tile
+from Chooser import Chooser
 
 pygame.init()
 maps = 'menu.map'
-size = WIDTH, HEIGHT = 640, 640
+scale = 2
+size = WIDTH, HEIGHT = 64 * 10 * scale, 64 * 8 * scale
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-player_speed = 32
+player_speed = 32 * scale
+choosers = []
 
 
 def load_image(name, colorkey=None):
@@ -26,6 +29,10 @@ def load_image(name, colorkey=None):
         image.set_colorkey(colorkey)
     else:
         image = image.convert_alpha()
+    if 'mar' not in name:
+        image = pygame.transform.scale(image, (64 * scale, 64 * scale))
+    else:
+        image = pygame.transform.scale(image, (32 * scale, 32 * scale))
     return image
 
 
@@ -43,7 +50,7 @@ def start_screen():
                   "Если в правилах несколько строк,",
                   "приходится выводить их построчно"]
 
-    fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
+    fon = pygame.transform.scale(load_image('mar.png'), (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
@@ -85,16 +92,16 @@ def load_level(filename):
 
 
 tile_images = {
-    'wall': [load_image('box.png')],
+    'wall': [load_image('box2.png')],
     'empty': [load_image('grass.png')],
     'pit': [load_image('pit.png')],
-    'exit': [load_image('exit2.png')],
-    'choose': [load_image('level1.png')]
+    'exit': [load_image('exit.png')],
+    'choose': [load_image('level1.png'), load_image('level2.png'), load_image('level3.png'), load_image('level4.png'),
+               load_image('level5.png')]
 }
 
-player_image = load_image('mar.png')
-
-tile_width = tile_height = 64
+player_image = [load_image('mar.png'), load_image('bmar.png'), load_image('lmar.png'), load_image('rmar.png'), load_image('marmove.png')]
+tile_width = tile_height = 64 * scale
 
 
 player = None
@@ -113,28 +120,30 @@ def generate_level(level):
     new_player, x, y = None, None, None
     for y in range(len(level)):
         for x in range(len(level[y])):
-            if level[y][x] == '.':
-                Tile(tile_images['empty'], x, y, tile_height, [all_sprites, tiles_group])
-            elif level[y][x] == '#':
-                Tile(tile_images['wall'], x, y, tile_height, [all_sprites, boxs_group])
+            Tile(tile_images['empty'], x * tile_width, y * tile_height, [all_sprites, tiles_group])
+            if level[y][x] == '#':
+                Tile(tile_images['wall'], x * tile_width, y * tile_height, [all_sprites, boxs_group])
             elif level[y][x] == '@':
-                Tile(tile_images['empty'], x, y, tile_height, [all_sprites, tiles_group])
+                Tile(tile_images['empty'], x * tile_width, y * tile_height, [all_sprites, tiles_group])
                 new_player = Player(player_image, x * tile_width + player_speed, y * tile_height + player_speed,
                                     player_speed, [all_sprites, player_group])
             elif level[y][x] == 'p':
-                Tile(tile_images['pit'], x, y, tile_height, [all_sprites, pits_group])
+                Tile(tile_images['pit'], x * tile_width, y * tile_height, [all_sprites, pits_group])
             elif level[y][x] == 'e':
-                Tile(tile_images['exit'], x, y, tile_height, [all_sprites, exit_group])
-            elif level[y][x] == 'c':
-                Tile(tile_images['choose'], x, y, tile_height, [all_sprites, choose_group])
+                Tile(tile_images['exit'], x * tile_width, y * tile_height, [all_sprites, exit_group])
+            elif level[y][x] == 'c' and maps == 'menu.map':
+                choosers.append(Chooser(tile_images['choose'], x * tile_width, y * tile_height,
+                                        'level' + str(len(choosers)) + '.map',
+                                        [all_sprites, choose_group]))
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
 
 def select_level(level):
-    global all_sprites, player, level_x, level_y, level_map, isMoving, move, maps
+    global all_sprites, player, level_x, level_y, level_map, isMoving, move, maps, choosers
     for i in all_sprites:
         i.kill()
+    choosers = []
     player, level_x, level_y = generate_level(load_level(level))
     level_map = load_level(level)
     isMoving = False
@@ -147,6 +156,7 @@ running = True
 player, level_x, level_y = generate_level(load_level(maps))
 level_map = load_level(maps)
 start_screen()
+box_collide = 0
 isMoving = False
 move = 0, 0
 while running:
@@ -160,37 +170,42 @@ while running:
             if event.key == pygame.K_RIGHT:
                 isMoving = True
                 move = 1, 0
-            if event.key == pygame.K_LEFT:
+            elif event.key == pygame.K_LEFT:
                 isMoving = True
                 move = -1, 0
-            if event.key == pygame.K_DOWN:
+            elif event.key == pygame.K_DOWN:
                 isMoving = True
                 move = 0, 1
-            if event.key == pygame.K_UP:
+            elif event.key == pygame.K_UP:
                 isMoving = True
                 move = 0, -1
+            player.rotate(move)
     x, y = player.pos
     if isMoving:
-        print('cant stop')
-        print(x, y)
         player.move(move[0], move[1])
-        print(move)
-        print(x, y)
-        if not (-1 < x + move[0] * player_speed < HEIGHT - 31 and -1 < y + move[1] * player_speed < WIDTH - 31):
+        if not (-1 < x + move[0] * player_speed < WIDTH - 31 and -1 < y + move[1] * player_speed < HEIGHT - 31):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
         elif pygame.sprite.spritecollideany(player, boxs_group):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
         elif pygame.sprite.spritecollideany(player, choose_group):
-            select_level('level1.map')
+            for i in choosers:
+                if pygame.sprite.spritecollideany(i, player_group):
+                    select_level(i.level)
         elif pygame.sprite.spritecollideany(player, pits_group):
             select_level(maps)
         elif pygame.sprite.spritecollideany(player, exit_group):
-            terminate()
+            if maps == 'menu.map':
+                terminate()
+            maps = 'menu.map'
+            select_level('menu.map')
+        else:
+            box_collide = 0
         print(x, y)
     all_sprites.draw(screen)
     player_group.draw(screen)
+    boxs_group.draw(screen)
     clock.tick(120)
     pygame.display.flip()
     clock.tick(FPS)
