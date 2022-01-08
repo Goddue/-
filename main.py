@@ -29,10 +29,7 @@ def load_image(name, colorkey=None):
         image.set_colorkey(colorkey)
     else:
         image = image.convert_alpha()
-    if 'mar' not in name:
-        image = pygame.transform.scale(image, (64 * scale, 64 * scale))
-    else:
-        image = pygame.transform.scale(image, (32 * scale, 32 * scale))
+        image = pygame.transform.scale(image, (image.get_width() * scale, image.get_height() * scale))
     return image
 
 
@@ -100,7 +97,7 @@ tile_images = {
                load_image('level5.png')]
 }
 
-player_image = [load_image('mar.png'), load_image('bmar.png'), load_image('lmar.png'), load_image('rmar.png'), load_image('marmove.png')]
+player_image = [load_image('marmove.png')]
 tile_width = tile_height = 64 * scale
 
 
@@ -203,9 +200,11 @@ while running:
         else:
             box_collide = 0
         print(x, y)
+    else:
+        player.cur_frame = 0
     all_sprites.draw(screen)
     player_group.draw(screen)
     boxs_group.draw(screen)
-    clock.tick(120)
+    clock.tick(30)
     pygame.display.flip()
     clock.tick(FPS)
