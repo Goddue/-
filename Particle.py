@@ -26,8 +26,8 @@ class Particle(pygame.sprite.Sprite):
         self.rect.y += self.velocity[1]
         # убиваем, если частица ушла за экран
         self.tick += 1
-        if self.tick % 20 == 0 and self.current < len(self.fire) - 1:
+        if self.tick % 16 == 0 and self.current < len(self.fire) - 1:
             self.current += 1
             self.image = self.fire[self.current]
-        if self.tick >= 100:
+        if self.tick >= 48:
             self.kill()

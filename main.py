@@ -10,11 +10,12 @@ import random
 pygame.init()
 maps = 'menu.map'
 scale = 2
-size = WIDTH, HEIGHT = 64 * 10 * scale, 64 * 8 * scale
+size = WIDTH, HEIGHT = 64 * 10 * scale, 64 * 7 * scale
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-player_speed = 32 * scale
-choosers = []
+player_speed = 32 * 32
+FPS = 64
+tick = 0
 
 
 def load_image(name, colorkey=None):
@@ -33,9 +34,6 @@ def load_image(name, colorkey=None):
         image = image.convert_alpha()
         image = pygame.transform.scale(image, (image.get_width() * scale, image.get_height() * scale))
     return image
-
-
-FPS = 60
 
 
 def terminate():
@@ -134,25 +132,24 @@ def generate_level(level):
                 Tile(tile_images['wall'], x * tile_width, y * tile_height, [all_sprites, boxs_group])
             elif level[y][x] == '@':
                 Tile(tile_images['empty'], x * tile_width, y * tile_height, [all_sprites, tiles_group])
-                new_player = Player(player_image, x * tile_width + player_speed, y * tile_height + player_speed,
+                new_player = Player(player_image, x * tile_width + 32, y * tile_height + 32,
                                     player_speed, [all_sprites, player_group])
             elif level[y][x] == 'p':
                 Tile(tile_images['pit'], x * tile_width, y * tile_height, [all_sprites, pits_group])
             elif level[y][x] == 'e':
                 Tile(tile_images['exit'], x * tile_width, y * tile_height, [all_sprites, exit_group])
             elif level[y][x] == 'c' and maps == 'menu.map':
-                choosers.append(Chooser(tile_images['choose'], x * tile_width, y * tile_height,
-                                        'level' + str(len(choosers)) + '.map',
-                                        [all_sprites, choose_group]))
+                Chooser(tile_images['choose'], x * tile_width, y * tile_height,
+                        'level' + str(len(choose_group)) + '.map',
+                        [all_sprites, choose_group])
     # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
 
 def select_level(level):
-    global all_sprites, player, level_x, level_y, level_map, isMoving, move, maps, choosers
+    global all_sprites, player, level_x, level_y, level_map, isMoving, move, maps
     for i in all_sprites:
         i.kill()
-    choosers = []
     player, level_x, level_y = generate_level(load_level(level))
     level_map = load_level(level)
     isMoving = False
@@ -174,7 +171,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             terminate()
-        if event.type == pygame.KEYDOWN and not isMoving:
+        if event.type == pygame.KEYDOWN and (not isMoving or maps == 'menu.map'):
             x, y = int(player.pos[0]), int(player.pos[1])
             if event.key == pygame.K_RIGHT:
                 isMoving = True
@@ -190,18 +187,19 @@ while running:
                 move = 0, -1
             player.rotate(move)
     x, y = player.pos
+    if player.tick % 4 == 0:
+        create_particles((x, y))
     if isMoving:
         player.move(move[0], move[1])
-        if not pygame.sprite.spritecollideany(player, particles_group):
-            create_particles((x, y))
-        if not (-1 < x + move[0] * player_speed < WIDTH - 31 and -1 < y + move[1] * player_speed < HEIGHT - 31):
+        if not (-1 < x + move[0] * player_speed // FPS < WIDTH - 48 and
+                -1 < y + move[1] * player_speed // FPS < HEIGHT - 48):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
         elif pygame.sprite.spritecollideany(player, boxs_group):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
         elif pygame.sprite.spritecollideany(player, choose_group):
-            for i in choosers:
+            for i in choose_group:
                 if pygame.sprite.spritecollideany(i, player_group):
                     select_level(i.level)
         elif pygame.sprite.spritecollideany(player, pits_group):
@@ -217,6 +215,9 @@ while running:
     else:
         player.cur_frame = 0
         player.image = player.frames[player.cur_frame]
+    for i in particles_group:
+        if pygame.sprite.spritecollideany(i, player_group) and i.tick > 36:
+            i.kill()
     particles_group.update()
     all_sprites.draw(screen)
     boxs_group.draw(screen)
