@@ -27,17 +27,17 @@ class Player(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
-        self.tick += 1
-        if self.tick >= 5 or self.cur_frame == 5:
+        if self.tick >= 5:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
             self.tick = 0
 
     def move(self, x, y):
-        self.rect = self.image.get_rect().move(self.pos[0] + x * self.speed // 64,
-                                               self.pos[1] + y * self.speed // 64)
-        self.pos = self.pos[0] + x * self.speed // 64, self.pos[1] + y * self.speed // 64
-        if self.cur_frame != 4:
+        self.tick += 1
+        self.rect = self.image.get_rect().move(self.pos[0] + x * self.speed,
+                                               self.pos[1] + y * self.speed)
+        self.pos = self.pos[0] + x * self.speed, self.pos[1] + y * self.speed
+        if self.cur_frame != 4 or self.tick >= 10:
             self.update()
 
     def rotate(self, move):

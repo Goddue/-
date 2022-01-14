@@ -5,22 +5,20 @@ from Player import Player
 from Tile import Tile
 from Chooser import Chooser
 from Particle import Particle
-import random
 
 pygame.init()
 maps = 'menu.map'
 scale = 2
-size = WIDTH, HEIGHT = 64 * 10 * scale, 64 * 7 * scale
+size = WIDTH, HEIGHT = 64 * 12 * scale, 64 * 7 * scale
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
-player_speed = 32 * 32
+player_speed = 16
 FPS = 64
 tick = 0
 
 
 def load_image(name, colorkey=None):
     fullname = os.path.join('data1', name)
-    # если файл не существует, то выходим
     if not os.path.isfile(fullname):
         print(f"Файл с изображением '{fullname}' не найден")
         sys.exit()
@@ -42,21 +40,19 @@ def terminate():
 
 
 def start_screen():
-    intro_text = ["ЗАСТАВКА", "",
-                  "Правила игры",
-                  "Если в правилах несколько строк,",
-                  "приходится выводить их построчно"]
+    intro_text = ["Hola)", '',
+                  'Нажмите любую кнопку, чтобы продолжить']
 
     fon = pygame.transform.scale(load_image('mar.png'), (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, True, pygame.Color('black'))
+        string_rendered = font.render(line, True, pygame.Color('#4b692f'))
         intro_rect = string_rendered.get_rect()
-        text_coord += 10
+        text_coord += 20
         intro_rect.top = text_coord
-        intro_rect.x = 10
+        intro_rect.x = 500
         text_coord += intro_rect.height
         screen.blit(string_rendered, intro_rect)
 
@@ -66,7 +62,35 @@ def start_screen():
                 terminate()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
-                return  # начинаем игру
+                return
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def death_screen():
+    intro_text = ["Hola)", '',
+                  'Нажмите любую кнопку, чтобы продолжить']
+
+    fon = pygame.transform.scale(load_image('mard.png'), (WIDTH, HEIGHT))
+    screen.blit(fon, (0, 0))
+    font = pygame.font.Font(None, 30)
+    text_coord = 50
+    for line in intro_text:
+        string_rendered = font.render(line, True, pygame.Color('#4b692f'))
+        intro_rect = string_rendered.get_rect()
+        text_coord += 20
+        intro_rect.top = text_coord
+        intro_rect.x = 500
+        text_coord += intro_rect.height
+        screen.blit(string_rendered, intro_rect)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -89,11 +113,7 @@ def load_level(filename):
 
 
 def create_particles(position):
-    # количество создаваемых частиц
-    particle_count = 1
-    # возможные скорости
-    numbers = range(-5, 6)
-    Particle(position, random.choice(numbers), random.choice(numbers), fire, [all_sprites, particles_group])
+    Particle(position, fire, [all_sprites, particles_group])
 
 
 tile_images = {
@@ -142,7 +162,6 @@ def generate_level(level):
                 Chooser(tile_images['choose'], x * tile_width, y * tile_height,
                         'level' + str(len(choose_group)) + '.map',
                         [all_sprites, choose_group])
-    # вернем игрока, а также размер поля в клетках
     return new_player, x, y
 
 
@@ -187,8 +206,6 @@ while running:
                 move = 0, -1
             player.rotate(move)
     x, y = player.pos
-    if player.tick % 4 == 0:
-        create_particles((x, y))
     if isMoving:
         player.move(move[0], move[1])
         if not (-1 < x + move[0] * player_speed // FPS < WIDTH - 48 and
@@ -203,6 +220,7 @@ while running:
                 if pygame.sprite.spritecollideany(i, player_group):
                     select_level(i.level)
         elif pygame.sprite.spritecollideany(player, pits_group):
+            death_screen()
             select_level(maps)
         elif pygame.sprite.spritecollideany(player, exit_group):
             if maps == 'menu.map':
@@ -212,11 +230,13 @@ while running:
         else:
             box_collide = 0
         print(x, y)
+        if x % 32 == 0 and y % 32 == 0:
+            create_particles((x + 8 * move[0] * -1, y + 8 * move[1] * -1))
     else:
-        player.cur_frame = 0
+        player.cur_frame = 4
         player.image = player.frames[player.cur_frame]
     for i in particles_group:
-        if pygame.sprite.spritecollideany(i, player_group) and i.tick > 36:
+        if pygame.sprite.spritecollideany(i, player_group) and i.tick > 2:
             i.kill()
     particles_group.update()
     all_sprites.draw(screen)
