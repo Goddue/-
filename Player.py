@@ -49,4 +49,3 @@ class Player(pygame.sprite.Sprite):
             self.frames = []
             self.cut_sheet(self.images[1], 5, 1)
             self.cur_frame = 0
-

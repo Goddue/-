@@ -69,7 +69,8 @@ def start_screen():
 
 def death_screen():
     intro_text = ["Hola)", '',
-                  'Нажмите любую кнопку, чтобы продолжить']
+                  'Нажмите любую кнопку, чтобы попытаться заново', '',
+                  'Нажмите ESC, чтобы выйти']
 
     fon = pygame.transform.scale(load_image('mard.png'), (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
@@ -90,6 +91,8 @@ def death_screen():
                 terminate()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    terminate()
                 return
         pygame.display.flip()
         clock.tick(FPS)
@@ -122,7 +125,9 @@ tile_images = {
     'pit': [load_image('pit.png')],
     'exit': [load_image('exit.png')],
     'choose': [load_image('level1.png'), load_image('level2.png'), load_image('level3.png'), load_image('level4.png'),
-               load_image('level5.png')]
+               load_image('level5.png')],
+    'arrows': [load_image('arws.png')],
+    'crack': [load_image('cracked.png')]
 }
 fire = [load_image("particle.png"), load_image("particle3.png"),
         load_image("particle4.png")]
@@ -141,6 +146,8 @@ choose_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
 pits_group = pygame.sprite.Group()
 particles_group = pygame.sprite.Group()
+arws_group = pygame.sprite.Group()
+crackd_group = pygame.sprite.Group()
 
 
 def generate_level(level):
@@ -158,11 +165,26 @@ def generate_level(level):
                 Tile(tile_images['pit'], x * tile_width, y * tile_height, [all_sprites, pits_group])
             elif level[y][x] == 'e':
                 Tile(tile_images['exit'], x * tile_width, y * tile_height, [all_sprites, exit_group])
+            elif level[y][x] == 'a':
+                Tile(tile_images['arrows'], x * tile_width, y * tile_height, [all_sprites, arws_group])
+            elif level[y][x] == 'k':
+                Tile(tile_images['crack'], x * tile_width, y * tile_height, [all_sprites, crackd_group])
             elif level[y][x] == 'c' and maps == 'menu.map':
                 Chooser(tile_images['choose'], x * tile_width, y * tile_height,
                         'level' + str(len(choose_group)) + '.map',
                         [all_sprites, choose_group])
     return new_player, x, y
+
+
+def manage_saves():
+    try:
+        with open('save.txt', 'r') as file:
+            level_map = [line.strip() for line in file]
+            return len(level_map)
+    except FileNotFoundError as e:
+        print('Ошибка')
+        terminate()
+
 
 
 def select_level(level):
@@ -184,13 +206,14 @@ start_screen()
 box_collide = 0
 isMoving = False
 move = 0, 0
+can_move = 0
 while running:
     screen.fill((255, 255, 255))
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             terminate()
-        if event.type == pygame.KEYDOWN and (not isMoving or maps == 'menu.map'):
+        if event.type == pygame.KEYDOWN and (not isMoving or pygame.sprite.spritecollideany(player, arws_group)):
             x, y = int(player.pos[0]), int(player.pos[1])
             if event.key == pygame.K_RIGHT:
                 isMoving = True
@@ -220,8 +243,14 @@ while running:
                 if pygame.sprite.spritecollideany(i, player_group):
                     select_level(i.level)
         elif pygame.sprite.spritecollideany(player, pits_group):
-            death_screen()
             select_level(maps)
+            death_screen()
+        elif pygame.sprite.spritecollideany(player, arws_group):
+            isMoving = False
+            player.move(move[0] * 5, move[1] * 5)
+            for i in arws_group:
+                if pygame.sprite.spritecollideany(i, player_group):
+                    i.kill()
         elif pygame.sprite.spritecollideany(player, exit_group):
             if maps == 'menu.map':
                 terminate()
@@ -230,13 +259,13 @@ while running:
         else:
             box_collide = 0
         print(x, y)
-        if x % 32 == 0 and y % 32 == 0:
-            create_particles((x + 8 * move[0] * -1, y + 8 * move[1] * -1))
+        if x % 32 == 0 and y % 32 == 0 and isMoving:
+            create_particles((x + 16 * move[0] * -1, y + 16 * move[1] * -1))
     else:
         player.cur_frame = 4
         player.image = player.frames[player.cur_frame]
     for i in particles_group:
-        if pygame.sprite.spritecollideany(i, player_group) and i.tick > 2:
+        if pygame.sprite.spritecollideany(i, player_group) and i.tick > 100:
             i.kill()
     particles_group.update()
     all_sprites.draw(screen)
