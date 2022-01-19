@@ -7,6 +7,7 @@ from Chooser import Chooser
 from Particle import Particle
 
 pygame.init()
+pygame.mixer.init()
 maps = 'menu.map'
 scale = 2
 size = WIDTH, HEIGHT = 64 * 12 * scale, 64 * 7 * scale
@@ -36,6 +37,7 @@ def load_image(name, colorkey=None):
 
 def terminate():
     pygame.quit()
+    pygame.mixer.quit()
     sys.exit()
 
 
@@ -48,7 +50,7 @@ def start_screen():
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, True, pygame.Color('#4b692f'))
+        string_rendered = font.render(line, True, pygame.Color('#7ba9c2'))
         intro_rect = string_rendered.get_rect()
         text_coord += 20
         intro_rect.top = text_coord
@@ -68,7 +70,8 @@ def start_screen():
 
 
 def death_screen():
-    intro_text = ["Hola)", '',
+    death_sound.play()
+    intro_text = ["(", '',
                   'Нажмите любую кнопку, чтобы попытаться заново', '',
                   'Нажмите ESC, чтобы выйти']
 
@@ -77,7 +80,7 @@ def death_screen():
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, True, pygame.Color('#4b692f'))
+        string_rendered = font.render(line, True, pygame.Color('#7ba9c2'))
         intro_rect = string_rendered.get_rect()
         text_coord += 20
         intro_rect.top = text_coord
@@ -119,6 +122,10 @@ def create_particles(position):
     Particle(position, fire, [all_sprites, particles_group])
 
 
+death_sound = pygame.mixer.Sound('data1/Default.wav')
+box_sound = pygame.mixer.Sound('data1/Default2.wav')
+move_sound = pygame.mixer.Sound('data1/Default3.wav')
+
 tile_images = {
     'wall': [load_image('box2.png')],
     'empty': [load_image('grass.png')],
@@ -126,8 +133,7 @@ tile_images = {
     'exit': [load_image('exit.png')],
     'choose': [load_image('level1.png'), load_image('level2.png'), load_image('level3.png'), load_image('level4.png'),
                load_image('level5.png')],
-    'arrows': [load_image('arws.png')],
-    'crack': [load_image('cracked.png')]
+    'arrows': [load_image('arws.png')]
 }
 fire = [load_image("particle.png"), load_image("particle3.png"),
         load_image("particle4.png")]
@@ -167,24 +173,31 @@ def generate_level(level):
                 Tile(tile_images['exit'], x * tile_width, y * tile_height, [all_sprites, exit_group])
             elif level[y][x] == 'a':
                 Tile(tile_images['arrows'], x * tile_width, y * tile_height, [all_sprites, arws_group])
-            elif level[y][x] == 'k':
-                Tile(tile_images['crack'], x * tile_width, y * tile_height, [all_sprites, crackd_group])
             elif level[y][x] == 'c' and maps == 'menu.map':
                 Chooser(tile_images['choose'], x * tile_width, y * tile_height,
-                        'level' + str(len(choose_group)) + '.map',
+                        ['level' + str(len(choose_group)) + '.map', 'level' + str(len(choose_group) + 1) + '.map'],
                         [all_sprites, choose_group])
     return new_player, x, y
 
 
-def manage_saves():
+def read_saves():
     try:
-        with open('save.txt', 'r') as file:
-            level_map = [line.strip() for line in file]
-            return len(level_map)
+        with open('data1/save.txt', 'r') as file:
+            unlocked = [line.strip() for line in file]
+            return unlocked
     except FileNotFoundError as e:
-        print('Ошибка')
-        terminate()
+        with open('data1/save.txt', 'w') as file:
+            file.writelines('level1.map\n')
+            return ['level0.map']
 
+
+def save_game(level):
+    if level not in unlocked_levels:
+        try:
+            with open('data1/save.txt', 'w') as file:
+                file.writelines('\n'.join(unlocked_levels) + '\n' + level)
+        except FileNotFoundError as e:
+            terminate()
 
 
 def select_level(level):
@@ -207,6 +220,8 @@ box_collide = 0
 isMoving = False
 move = 0, 0
 can_move = 0
+unlocked_levels = read_saves()
+saving = 'level0.map'
 while running:
     screen.fill((255, 255, 255))
     for event in pygame.event.get():
@@ -227,6 +242,13 @@ while running:
             elif event.key == pygame.K_UP:
                 isMoving = True
                 move = 0, -1
+            elif event.key == pygame.K_r:
+                select_level(maps)
+                death_screen()
+                continue
+            else:
+                continue
+            move_sound.play()
             player.rotate(move)
     x, y = player.pos
     if isMoving:
@@ -235,13 +257,18 @@ while running:
                 -1 < y + move[1] * player_speed // FPS < HEIGHT - 48):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
+            box_sound.play()
         elif pygame.sprite.spritecollideany(player, boxs_group):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
+            box_sound.play()
         elif pygame.sprite.spritecollideany(player, choose_group):
             for i in choose_group:
                 if pygame.sprite.spritecollideany(i, player_group):
-                    select_level(i.level)
+                    print(unlocked_levels, i.level)
+                    if i.level in unlocked_levels:
+                        select_level(i.level)
+                        saving = i.save
         elif pygame.sprite.spritecollideany(player, pits_group):
             select_level(maps)
             death_screen()
@@ -256,6 +283,10 @@ while running:
                 terminate()
             maps = 'menu.map'
             select_level('menu.map')
+            print(saving)
+            save_game(saving)
+            unlocked_levels = read_saves()
+            print(unlocked_levels)
         else:
             box_collide = 0
         print(x, y)
@@ -265,7 +296,7 @@ while running:
         player.cur_frame = 4
         player.image = player.frames[player.cur_frame]
     for i in particles_group:
-        if pygame.sprite.spritecollideany(i, player_group) and i.tick > 100:
+        if pygame.sprite.spritecollideany(i, player_group) and i.tick > 50:
             i.kill()
     particles_group.update()
     all_sprites.draw(screen)
