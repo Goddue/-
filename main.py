@@ -16,8 +16,10 @@ clock = pygame.time.Clock()
 player_speed = 16
 FPS = 64
 tick = 0
+tile_width = tile_height = 64 * scale
 
 
+# Функция отвечает за подгрузку ихображений
 def load_image(name, colorkey=None):
     fullname = os.path.join('data1', name)
     if not os.path.isfile(fullname):
@@ -35,12 +37,14 @@ def load_image(name, colorkey=None):
     return image
 
 
+# Функция выхода из игры
 def terminate():
     pygame.quit()
     pygame.mixer.quit()
     sys.exit()
 
 
+# Функция вызова стартового экрана
 def start_screen():
     intro_text = ["Hola)", '',
                   'Нажмите любую кнопку, чтобы продолжить']
@@ -69,18 +73,17 @@ def start_screen():
         clock.tick(FPS)
 
 
-def death_screen():
+# Функция вызова экрана смерти/экрана окончания игры
+def ends_screen(image, text):
     death_sound.play()
-    intro_text = ["(", '',
-                  'Нажмите любую кнопку, чтобы попытаться заново', '',
-                  'Нажмите ESC, чтобы выйти']
+    intro_text = text
 
-    fon = pygame.transform.scale(load_image('mard.png'), (WIDTH, HEIGHT))
+    fon = pygame.transform.scale(image, (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, True, pygame.Color('#7ba9c2'))
+        string_rendered = font.render(line, True, pygame.Color('Black'))
         intro_rect = string_rendered.get_rect()
         text_coord += 20
         intro_rect.top = text_coord
@@ -94,13 +97,15 @@ def death_screen():
                 terminate()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                if (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE)\
+                        or 'Игра кончилась. За время прохождения вы' in text:
                     terminate()
                 return
         pygame.display.flip()
         clock.tick(FPS)
 
 
+# Функция подгрузки уровня
 def load_level(filename):
     filename = "data1/" + filename
     # читаем уровень, убирая символы перевода строки
@@ -118,10 +123,12 @@ def load_level(filename):
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
 
 
+# Функция отвечает за создание партиклов
 def create_particles(position):
     Particle(position, fire, [all_sprites, particles_group])
 
 
+# Подгружаю музыку и изображения
 death_sound = pygame.mixer.Sound('data1/Default.wav')
 box_sound = pygame.mixer.Sound('data1/Default2.wav')
 move_sound = pygame.mixer.Sound('data1/Default3.wav')
@@ -138,10 +145,6 @@ tile_images = {
 fire = [load_image("particle.png"), load_image("particle3.png"),
         load_image("particle4.png")]
 player_image = [load_image('marmove.png'), load_image('bmarmove.png')]
-tile_width = tile_height = 64 * scale
-
-
-player = None
 
 # группы спрайтов
 all_sprites = pygame.sprite.Group()
@@ -156,6 +159,7 @@ arws_group = pygame.sprite.Group()
 crackd_group = pygame.sprite.Group()
 
 
+# Функция генерации уровня
 def generate_level(level):
     new_player, x, y = None, None, None
     for y in range(len(level)):
@@ -180,26 +184,29 @@ def generate_level(level):
     return new_player, x, y
 
 
+# Функция, отвечающая за чтение сохранений
 def read_saves():
     try:
         with open('data1/save.txt', 'r') as file:
             unlocked = [line.strip() for line in file]
-            return unlocked
+            return int(unlocked[0]), unlocked[1:]
     except FileNotFoundError as e:
         with open('data1/save.txt', 'w') as file:
-            file.writelines('level1.map\n')
-            return ['level0.map']
+            file.writelines('0\nlevel0.map\n')
+        return 0, ['level0.map']
 
 
-def save_game(level):
+# Функция сохранения игры
+def save_game(level, deaths):
     if level not in unlocked_levels:
         try:
             with open('data1/save.txt', 'w') as file:
-                file.writelines('\n'.join(unlocked_levels) + '\n' + level)
+                file.writelines(str(deaths) + '\n' + '\n'.join(unlocked_levels) + '\n' + level)
         except FileNotFoundError as e:
             terminate()
 
 
+# Функция, отвечающая за обновление уровня после смерти игрока или перехода на другой уровень
 def select_level(level):
     global all_sprites, player, level_x, level_y, level_map, isMoving, move, maps
     for i in all_sprites:
@@ -209,7 +216,6 @@ def select_level(level):
     isMoving = False
     move = 0, 0
     maps = level
-    print(True)
 
 
 running = True
@@ -220,7 +226,7 @@ box_collide = 0
 isMoving = False
 move = 0, 0
 can_move = 0
-unlocked_levels = read_saves()
+deaths, unlocked_levels = read_saves()
 saving = 'level0.map'
 while running:
     screen.fill((255, 255, 255))
@@ -228,6 +234,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             terminate()
+        # Управление персонажем(задается направление движения) рестарт уровня
         if event.type == pygame.KEYDOWN and (not isMoving or pygame.sprite.spritecollideany(player, arws_group)):
             x, y = int(player.pos[0]), int(player.pos[1])
             if event.key == pygame.K_RIGHT:
@@ -244,13 +251,18 @@ while running:
                 move = 0, -1
             elif event.key == pygame.K_r:
                 select_level(maps)
-                death_screen()
+                deaths += 1
+                ends_screen(load_image('mard.png'),
+                            ["(", '',
+                             'Нажмите любую кнопку, чтобы попытаться заново', '', 'Нажмите ESC, чтобы выйти'])
                 continue
             else:
                 continue
             move_sound.play()
+            # Поворот героя в зависимости от направления движения
             player.rotate(move)
     x, y = player.pos
+    # Движение игрока
     if isMoving:
         player.move(move[0], move[1])
         if not (-1 < x + move[0] * player_speed // FPS < WIDTH - 48 and
@@ -258,6 +270,7 @@ while running:
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
             box_sound.play()
+        # Столкновения и их последствия
         elif pygame.sprite.spritecollideany(player, boxs_group):
             isMoving = 0
             player.move(move[0] * -1, move[1] * -1)
@@ -265,13 +278,14 @@ while running:
         elif pygame.sprite.spritecollideany(player, choose_group):
             for i in choose_group:
                 if pygame.sprite.spritecollideany(i, player_group):
-                    print(unlocked_levels, i.level)
                     if i.level in unlocked_levels:
                         select_level(i.level)
                         saving = i.save
         elif pygame.sprite.spritecollideany(player, pits_group):
             select_level(maps)
-            death_screen()
+            deaths += 1
+            ends_screen(load_image('mard.png'),
+                        ["(", '', 'Нажмите любую кнопку, чтобы попытаться заново', '', 'Нажмите ESC, чтобы выйти'])
         elif pygame.sprite.spritecollideany(player, arws_group):
             isMoving = False
             player.move(move[0] * 5, move[1] * 5)
@@ -281,23 +295,23 @@ while running:
         elif pygame.sprite.spritecollideany(player, exit_group):
             if maps == 'menu.map':
                 terminate()
+            elif maps == 'level4.map':
+                ends_screen(load_image('last_image.png'), ['Игра кончилась. За время прохождения вы',
+                                                           'умерли ' + str(deaths) + ' раз'])
             maps = 'menu.map'
             select_level('menu.map')
-            print(saving)
-            save_game(saving)
-            unlocked_levels = read_saves()
-            print(unlocked_levels)
+            save_game(saving, deaths)
+            deaths, unlocked_levels = read_saves()
         else:
             box_collide = 0
-        print(x, y)
         if x % 32 == 0 and y % 32 == 0 and isMoving:
             create_particles((x + 16 * move[0] * -1, y + 16 * move[1] * -1))
+        for i in particles_group:
+            if pygame.sprite.spritecollideany(i, player_group) and i.tick > 30:
+                i.kill()
     else:
         player.cur_frame = 4
         player.image = player.frames[player.cur_frame]
-    for i in particles_group:
-        if pygame.sprite.spritecollideany(i, player_group) and i.tick > 50:
-            i.kill()
     particles_group.update()
     all_sprites.draw(screen)
     boxs_group.draw(screen)

@@ -15,17 +15,17 @@ class Player(pygame.sprite.Sprite):
             pos_x, pos_y)
         self.tick = 10
 
+    # Режу спрайтлист на отдельные изображения
     def cut_sheet(self, sheet, columns, rows):
-        print(sheet.get_width(), sheet.get_height())
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
                                 sheet.get_height() // rows)
-        print(self.rect.w, self.rect.h)
         for j in range(rows):
             for i in range(columns):
                 frame_location = (self.rect.w * i, self.rect.h * j)
                 self.frames.append(sheet.subsurface(pygame.Rect(
                     frame_location, self.rect.size)))
 
+    # Анимация спрайта
     def update(self):
         if self.tick >= 5:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
@@ -40,6 +40,8 @@ class Player(pygame.sprite.Sprite):
         if self.cur_frame != 4 or self.tick >= 10:
             self.update()
 
+    # Функция отвечает за поворот героя в нужную сторону(
+    # выбирает для него одно из двух изображений - переднее или боковое)
     def rotate(self, move):
         if move == (0, 1):
             self.frames = []
